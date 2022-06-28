@@ -1,0 +1,257 @@
+diff -n --rcs -r ./Makefile.gsetup ../../nvopencc/src/Makefile.gsetup
+a121 4
+
+BUILD_OPTIMIZE=NODEBUG
+#BUILD_TYPE=SHARED
+
+diff -n --rcs -r ./be/cg/NVISA/expand.cxx ../../nvopencc/src/be/cg/NVISA/expand.cxx
+a1777 65
+Expand_Addc (TN *result, TN *src1, TN *src2, TYPE_ID mtype, OPS *ops,
+        bool is_signed)
+{
+  TOP opc = (is_signed ? TOP_addc_cc_s32 : TOP_addc_cc_u32),
+    opc_lit = (is_signed ? TOP_addc_cc_s32_lit : TOP_addc_cc_u32_lit);
+  INT64 val;
+  FmtAssert(!TN_is_constant(src1), ("NYI"));
+
+  // may be incrementing through memory space:
+  // (propagate src2 before we replace it)
+  if (TN_has_memory_space(src1))
+    Set_TN_memory_space (result, TN_memory_space(src1));
+  else if (TN_has_memory_space(src2))
+    Set_TN_memory_space (result, TN_memory_space(src2));
+
+  if (TN_Can_Use_Constant_Value (src1, mtype, &val)) {
+    opc = opc_lit;
+    src1 = src2;
+    src2 = Gen_Literal_TN_Of_Mtype (val, mtype);
+  } else if (TN_Can_Use_Constant_Value (src2, mtype, &val)) {
+
+    opc = opc_lit;
+    src2 = Gen_Literal_TN_Of_Mtype (val, mtype);
+  }
+//TODO: check what this means exactly:
+  else if (TN_is_constant(src2)) {
+        // expand add a,const into mov t,const; add a,t;
+        src2 = Expand_Mtype_Immediate_Into_Register (src2, mtype, ops);
+  }
+  Build_OP (opc, result, src1, src2, ops);
+}
+
+void
+Expand_Addo (TN *result, TN *src1, TN *src2, TYPE_ID mtype, OPS *ops,
+        bool is_signed)
+{
+  TOP opc = (is_signed ? TOP_add_cc_s32 : TOP_add_cc_u32),
+    opc_lit = (is_signed ? TOP_add_cc_s32_lit : TOP_add_cc_u32_lit);
+  INT64 val;
+  FmtAssert(!TN_is_constant(src1), ("NYI"));
+
+  // may be incrementing through memory space:
+  // (propagate src2 before we replace it)
+  if (TN_has_memory_space(src1))
+    Set_TN_memory_space (result, TN_memory_space(src1));
+  else if (TN_has_memory_space(src2))
+    Set_TN_memory_space (result, TN_memory_space(src2));
+
+  if (TN_Can_Use_Constant_Value (src1, mtype, &val)) {
+    opc = opc_lit;
+    src1 = src2;
+    src2 = Gen_Literal_TN_Of_Mtype (val, mtype);
+  } else if (TN_Can_Use_Constant_Value (src2, mtype, &val)) {
+
+    opc = opc_lit;
+    src2 = Gen_Literal_TN_Of_Mtype (val, mtype);
+  }
+  else if (TN_is_constant(src2)) {
+        // expand add a,const into mov t,const; add a,t;
+        src2 = Expand_Mtype_Immediate_Into_Register (src2, mtype, ops);
+  }
+  Build_OP (opc, result, src1, src2, ops);
+}
+
+void
+a1861 12
+  case INTRN_ADDC:
+        Expand_Addc(result, op0, op1, mtype, ops, true);
+        break;
+  case INTRN_UADDC:
+        Expand_Addc(result, op0, op1, mtype, ops, false);
+        break;
+  case INTRN_ADDO:
+        Expand_Addo(result, op0, op1, mtype, ops, true);
+        break;
+  case INTRN_UADDO:
+        Expand_Addo(result, op0, op1, mtype, ops, false);
+        break;
+a1867 14
+  case INTRN_MUL24HI:
+        Build_OP (TOP_mul24_hi_s32, result, op0, op1, ops);
+        //Expand_Mul24hi(result, op0, op1, mtype, ops, true);
+        break;
+  case INTRN_UMUL24HI:
+        //Expand_Mul24hi(result, op0, op1, mtype, ops, false);
+        Build_OP (TOP_mul24_hi_u32, result, op0, op1, ops);
+        break;
+  case INTRN_MAD24HI:
+        Build_OP (TOP_mad24_hi_s32, result, op0, op1, op2, ops);
+        break;
+  case INTRN_UMAD24HI:
+        Build_OP (TOP_mad24_hi_u32, result, op0, op1, op2, ops);
+        break;
+diff -n --rcs -r ./common/com/intrn_entry.def ../../nvopencc/src/common/com/intrn_entry.def
+a5097 15
+DEF_INTRN_ENTRY(INTRN_ADDO, "ADDO", BYVAL, PURE, NO_SIDEEFFECTS,
+                DOES_RETURN, NOT_ACTUAL, CGINTRINSIC, NOT_SLAVE, 
+                IRETURN_I4, "addo", NULL, NULL)
+
+DEF_INTRN_ENTRY(INTRN_UADDO, "UADDO", BYVAL, PURE, NO_SIDEEFFECTS,
+                DOES_RETURN, NOT_ACTUAL, CGINTRINSIC, NOT_SLAVE, 
+                IRETURN_I4, "uaddo", NULL, NULL)
+
+DEF_INTRN_ENTRY(INTRN_ADDC, "ADDC", BYVAL, PURE, NO_SIDEEFFECTS,
+                DOES_RETURN, NOT_ACTUAL, CGINTRINSIC, NOT_SLAVE, 
+                IRETURN_I4, "addc", NULL, NULL)
+
+DEF_INTRN_ENTRY(INTRN_UADDC, "UADDC", BYVAL, PURE, NO_SIDEEFFECTS,
+                DOES_RETURN, NOT_ACTUAL, CGINTRINSIC, NOT_SLAVE, 
+                IRETURN_I4, "uaddc", NULL, NULL)
+a5105 16
+/* MUL24HI */
+DEF_INTRN_ENTRY(INTRN_MUL24HI, "MUL24HI", BYVAL, PURE, NO_SIDEEFFECTS, 
+                DOES_RETURN, NOT_ACTUAL, CGINTRINSIC, NOT_SLAVE, 
+                IRETURN_I4, "mul24hi", NULL, NULL)
+/* UMUL24HI */
+DEF_INTRN_ENTRY(INTRN_UMUL24HI, "UMUL24HI", BYVAL, PURE, NO_SIDEEFFECTS, 
+                DOES_RETURN, NOT_ACTUAL, CGINTRINSIC, NOT_SLAVE, 
+                IRETURN_U4, "umul24hi", NULL, NULL)
+/* MAD24HI */
+DEF_INTRN_ENTRY(INTRN_MAD24HI, "MAD24HI", BYVAL, PURE, NO_SIDEEFFECTS,
+                DOES_RETURN, NOT_ACTUAL, CGINTRINSIC, NOT_SLAVE, 
+                IRETURN_I4, "mad24hi", NULL, NULL)
+/* UMAD24HI */
+DEF_INTRN_ENTRY(INTRN_UMAD24HI, "UMAD24HI", BYVAL, PURE, NO_SIDEEFFECTS,
+                DOES_RETURN, NOT_ACTUAL, CGINTRINSIC, NOT_SLAVE, 
+                IRETURN_U4, "umad24hi", NULL, NULL)
+diff -n --rcs -r ./common/targ_info/isa/NVISA/isa.cxx ../../nvopencc/src/common/targ_info/isa/NVISA/isa.cxx
+a84 14
+    "add.cc.s32",
+    "add.cc.u32",
+    "add.cc.s32_lit",
+    "add.cc.u32_lit",
+    "addc.cc.s32",
+    "addc.cc.u32",
+    "addc.cc.s32_lit",
+    "addc.cc.u32_lit",
+    "mul24.hi.s32",
+    "mul24.hi.u32",
+    "mul24.hi.s32_lit",
+    "mul24.hi.u32_lit",
+    "mad24.hi.s32",
+    "mad24.hi.u32",
+diff -n --rcs -r ./common/targ_info/isa/NVISA/isa_operands.cxx ../../nvopencc/src/common/targ_info/isa/NVISA/isa_operands.cxx
+d462 1
+a462 1
+	TOP_add_s32_lit, TOP_addc_cc_s32_lit, TOP_add_cc_s32_lit,
+a465 1
+    TOP_mul24_hi_s32_lit,
+d478 1
+a478 1
+	TOP_add_u32_lit, TOP_addc_cc_u32_lit, TOP_add_cc_u32_lit,
+a481 1
+    TOP_mul24_hi_u32_lit,
+d702 2
+a703 2
+	TOP_add_s32, TOP_add_u32, TOP_addc_cc_s32, TOP_addc_cc_u32,
+	TOP_sub_s32, TOP_sub_u32, TOP_add_cc_s32, TOP_add_cc_u32,
+d706 1
+a706 2
+    TOP_mul24_lo_s32, TOP_mul24_lo_u32,
+    TOP_mul24_hi_s32, TOP_mul24_hi_u32,
+a806 1
+    TOP_mad24_hi_s32, TOP_mad24_hi_u32,
+diff -n --rcs -r ./common/targ_info/isa/NVISA/isa_print.cxx ../../nvopencc/src/common/targ_info/isa/NVISA/isa_print.cxx
+a250 4
+    TOP_addc_cc_s32, TOP_addc_cc_u32, TOP_addc_cc_s32_lit,
+    TOP_addc_cc_u32_lit,
+    TOP_add_cc_s32, TOP_add_cc_u32, TOP_add_cc_s32_lit,
+    TOP_add_cc_u32_lit,
+a270 2
+    TOP_mul24_hi_s32, TOP_mul24_hi_u32,
+    TOP_mul24_hi_s32_lit, TOP_mul24_hi_u32_lit,
+a410 1
+    TOP_mad24_hi_s32, TOP_mad24_hi_u32,
+diff -n --rcs -r ./gccfe/gnu/builtins.def ../../nvopencc/src/gccfe/gnu/builtins.def
+a1384 16
+DEF_LIB_BUILTIN(BUILT_IN_ADDO,
+                "__builtin___addo",
+                BT_FN_INT_INT_INT,
+                ATTR_NOTHROW_LIST)
+DEF_LIB_BUILTIN(BUILT_IN_UADDO,
+                "__builtin___uaddo",
+                BT_FN_UNSIGNED_UNSIGNED_UNSIGNED,
+                ATTR_NOTHROW_LIST)
+DEF_LIB_BUILTIN(BUILT_IN_ADDC,
+                "__builtin___addc",
+                BT_FN_INT_INT_INT,
+                ATTR_NOTHROW_LIST)
+DEF_LIB_BUILTIN(BUILT_IN_UADDC,
+                "__builtin___uaddc",
+                BT_FN_UNSIGNED_UNSIGNED_UNSIGNED,
+                ATTR_NOTHROW_LIST)
+a1392 16
+DEF_LIB_BUILTIN(BUILT_IN_MUL24HI,
+                "__builtin___mul24hi",
+                BT_FN_INT_INT_INT,
+                ATTR_NOTHROW_LIST)
+DEF_LIB_BUILTIN(BUILT_IN_UMUL24HI,
+                "__builtin___umul24hi",
+                BT_FN_UNSIGNED_UNSIGNED_UNSIGNED,
+                ATTR_NOTHROW_LIST)
+DEF_LIB_BUILTIN(BUILT_IN_MAD24HI,
+                "__builtin___mad24hi",
+                BT_FN_INT_INT_INT_INT,
+                ATTR_NOTHROW_LIST)
+DEF_LIB_BUILTIN(BUILT_IN_UMAD24HI,
+                "__builtin___umad24hi",
+                BT_FN_UNSIGNED_UNSIGNED_UNSIGNED_UNSIGNED,
+                ATTR_NOTHROW_LIST)
+diff -n --rcs -r ./gccfe/wfe_expr.cxx ../../nvopencc/src/gccfe/wfe_expr.cxx
+a5811 16
+              case BUILT_IN_ADDO:
+                iopc = INTRN_ADDO;
+                intrinsic_op = TRUE;
+                break;
+              case BUILT_IN_UADDO:
+                iopc = INTRN_UADDO;
+                intrinsic_op = TRUE;
+                break;
+              case BUILT_IN_ADDC:
+                iopc = INTRN_ADDC;
+                intrinsic_op = TRUE;
+                break;
+              case BUILT_IN_UADDC:
+                iopc = INTRN_UADDC;
+                intrinsic_op = TRUE;
+                break;
+a5819 16
+              case BUILT_IN_MUL24HI:
+                iopc = INTRN_MUL24HI;
+                intrinsic_op = TRUE;
+                break;
+              case BUILT_IN_UMUL24HI:
+                iopc = INTRN_UMUL24HI;
+                intrinsic_op = TRUE;
+                break;
+              case BUILT_IN_MAD24HI:
+                iopc = INTRN_MAD24HI;
+                intrinsic_op = TRUE;
+                break;
+              case BUILT_IN_UMAD24HI:
+                iopc = INTRN_UMAD24HI;
+                intrinsic_op = TRUE;
+                break;
+diff -n --rcs -r ./linux/make/gcommondefs ../../nvopencc/src/linux/make/gcommondefs
+d138 1
+a138 1
+    ROOT_DIR := $(dir $(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))/../../..

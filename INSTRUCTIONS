@@ -1,0 +1,14 @@
+
+
+How to install (for 32-bit Linux platform):
+
+1. copy nvopencc to path/to/cuda_toolkit/open64/bin/ (* backup original nvopencc first *)
+
+2. copy 'gfec' (gcc front-end), 'be' (compiler back-end) and 'inline' (single file inliner) to path/to/cuda_toolkit/open64/lib/ (* backup original files first *)
+
+3. copy ext_intrinsics.h to path/to/cuda_toolkit/include/  
+
+4. include 'ext_intrinsics.h' either directly from your code or from some library header (for instance, from 'device_functions.h')
+
+5. add path/to/cuda_toolkit/open64/lib/ to your PATH variable (otherwise nvopencc will not find all compilation phases)
+
